@@ -7,7 +7,6 @@ __version__ = "2.0.0"
 from . import window
 from .compiler import build, build_theme
 from .extension import *
-from .themes import ColorTheme
 from .env_methods import env
 from . import types as ext
 from .types import *
