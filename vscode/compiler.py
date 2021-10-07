@@ -4,7 +4,6 @@ import os
 import time
 from .utils import combine_list_dicts
 from .extension import Extension
-from .themes import ColorTheme
 
 
 def create_package(data: dict, config: dict) -> dict:
