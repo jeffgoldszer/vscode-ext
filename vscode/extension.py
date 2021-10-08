@@ -1,3 +1,7 @@
+import asyncio
+import websockets
+import json
+
 from .config import Config
 from .types import *
 from .utils import *
@@ -183,6 +187,25 @@ class Extension:
                 raise TypeError(
                     "activity_bar_webview must be either an instance of vscode.StaticWebview or dict"
                 )
+
+    def run(self) -> None:
+        """
+        Run the extension.
+        """
+    
+        async def handle(websocket, _):
+            data = await websocket.recv()
+            name = json.loads(data).get('name')
+
+            greeting = f"Hello {name}!"
+
+            await websocket.send(greeting)
+
+        async def main():
+            async with websockets.serve(handle, "localhost", 8765):
+                await asyncio.Future()
+
+        asyncio.run(main())
 
 
 class Command:
