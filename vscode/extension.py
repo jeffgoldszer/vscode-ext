@@ -193,20 +193,24 @@ class Extension:
         Run the extension.
         """
     
-        async def handle(websocket, _):
-            data = await websocket.recv()
-            name = json.loads(data).get('name')
-
-            greeting = f"Hello {name}!"
-
-            await websocket.send(greeting)
+        async def handler(websocket, _):
+            async for message in websocket:
+                data = json.loads(message)
+                if data["type"] == 1: # Command
+                    ctx = Context(websocket)
+                    await self.get_command(data["name"]).invoke(ctx)
+                else:
+                    raise NotImplementedError    
 
         async def main():
-            async with websockets.serve(handle, "localhost", 8765):
-                await asyncio.Future()
+            async with websockets.serve(handler, "localhost", 8765):
+                await asyncio.Future() # runs forever
 
         asyncio.run(main())
 
+    def get_command(self, name: str) -> "Command":
+        # TODO: use a dict for storing commands
+        return [i for i in self.commands if i.name == name][0]
 
 class Command:
     """
@@ -239,9 +243,12 @@ class Command:
 
         self.name = convert_snake_to_camel(name)
         self.title = convert_snake_to_title(name) if title is None else title
+        if not asyncio.iscoroutinefunction(func):
+            raise TypeError("Callback must be a coroutine.")
+
         self.func = func
         self.func_name = self.func.__name__
-        self.category = None if category is False else category
+        self.category = None if category is False else category # TODO: use sentinels
         self.keybind = keybind.upper() if keybind is not None else None
         self.when = convert_python_condition(when) if when is not None else None
 
@@ -251,5 +258,13 @@ class Command:
         """
         return f"{ext_name}.{self.name}"
 
+    async def invoke(self, ctx: "Context"):
+        await self.func(ctx)
+
     def __repr__(self):
         return f"<vscode.Command {self.name}>"
+
+
+class Context:
+    def __init__(self, ws):
+        self.ws = ws
