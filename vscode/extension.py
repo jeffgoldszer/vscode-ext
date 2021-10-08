@@ -188,9 +188,10 @@ class Extension:
                     "activity_bar_webview must be either an instance of vscode.StaticWebview or dict"
                 )
 
-    def run(self) -> None:
+    def run(self, port: int = None) -> None:
         """
         Run the extension.
+        If port is None then a random open port is chosen.
         """
     
         async def handler(websocket, _):
@@ -202,11 +203,19 @@ class Extension:
                 else:
                     raise NotImplementedError    
 
-        async def main():
-            async with websockets.serve(handler, "localhost", 8765):
+        async def run_handler(port):
+            async with websockets.serve(handler, "localhost", port):
                 await asyncio.Future() # runs forever
 
-        asyncio.run(main())
+        if port is None:
+            import socket
+            s = socket.socket()
+            s.bind(('', 0))          
+            port = s.getsockname()[1]    
+
+        uri = f"ws://localhost:{port}"
+        print(uri) # This will be picked up by the javascript
+        asyncio.run(run_handler(port))
 
     def get_command(self, name: str) -> "Command":
         # TODO: use a dict for storing commands
