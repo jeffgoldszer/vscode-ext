@@ -1,3 +1,4 @@
+import sys
 import asyncio
 import websockets
 import json
@@ -7,6 +8,7 @@ from .types import *
 from .utils import *
 from typing import Optional, Callable, Union, List
 from .webviews import *
+from .compiler import build
 
 class Extension:
     """Represents a vscode extension.
@@ -188,12 +190,24 @@ class Extension:
                     "activity_bar_webview must be either an instance of vscode.StaticWebview or dict"
                 )
 
-    def run(self, port: int = None) -> None:
+    def run(self, port: Optional[int] = None) -> None:
         """
         Run the extension.
         If port is None then a random open port is chosen.
         """
+
+        if len(sys.argv) > 1 and sys.argv[1] == '--build':
+            build(self)
+            return 
     
+        if port is None:
+            import socket
+            s = socket.socket()
+            s.bind(('', 0))          
+            port = s.getsockname()[1]    
+
+        print(f"ws://localhost:{port}") # This will be picked up by the javascript
+
         async def handler(websocket, _):
             async for message in websocket:
                 data = json.loads(message)
@@ -207,14 +221,6 @@ class Extension:
             async with websockets.serve(handler, "localhost", port):
                 await asyncio.Future() # runs forever
 
-        if port is None:
-            import socket
-            s = socket.socket()
-            s.bind(('', 0))          
-            port = s.getsockname()[1]    
-
-        uri = f"ws://localhost:{port}"
-        print(uri) # This will be picked up by the javascript
         asyncio.run(run_handler(port))
 
     def get_command(self, name: str) -> "Command":

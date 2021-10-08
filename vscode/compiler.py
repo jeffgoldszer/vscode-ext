@@ -3,8 +3,12 @@ import json
 import os
 import time
 from .utils import combine_list_dicts
-from .extension import Extension
+from typing import TYPE_CHECKING
 
+if TYPE_CHECKING:       
+    from .extension import Extension
+
+__all__ = ('build')
 
 def create_package(data: dict, config: dict) -> dict:
     package_name = data["name"]
@@ -43,35 +47,16 @@ launch_json = {
     ],
 }
 
-pre_imports = """# Built using vscode-ext
-
-import sys
-"""
 
 
-main_py = """
-def ipc_main():
-    globals()[sys.argv[1]]()
 
-ipc_main()
-"""
-
-
-def build_py(functions):
-    with open(inspect.getfile(functions[0]), "r") as f:
-        imports = pre_imports + "".join([l for l in f.readlines() if not "build(" in l])
-    imports += "\n"
-    main = main_py
-    code = imports + main
-    return code
-
-
+# TODO: refactor
 def build_js(name, events, commands, activity_bar_config=None):
     cwd = os.getcwd()
     # python_path = os.path.join(cwd, "build", "extension.py").replace("\\", "\\\\")
 
     imports = ""
-    directory, _ = os.path.split(inspect.getfile(build_py))
+    directory, _ = os.path.split(inspect.getfile(build_js))
     try:
         with open(os.path.join(directory, "main.js"), "r") as f:
             imports += f.read()
@@ -141,7 +126,7 @@ def build_js(name, events, commands, activity_bar_config=None):
     return f"{imports}\n{main}\n\n{exports}"
 
 
-def create_files(package, javascript, python, publish):
+def create_files(package, javascript, publish):
     cwd = os.getcwd()
 
     # ---- Static ----
@@ -170,15 +155,11 @@ def create_files(package, javascript, python, publish):
     with open(package_dir, "w") as f:
         json.dump(existing, f, indent=2)
 
-    build_path = os.path.join(cwd, "build")
-    os.makedirs(build_path, exist_ok=True)
-    os.chdir(build_path)
+    os.chdir(cwd)
+
     with open("extension.js", "w") as f:
         f.write(javascript)
 
-    with open("extension.py", "w") as f:
-        f.write(python)
-    os.chdir(cwd)
 
     if not os.path.isfile("requirements.txt"):
         with open("requirements.txt", "w") as f:
@@ -198,7 +179,7 @@ def create_files(package, javascript, python, publish):
                 f.write(".vscode/**")
 
 
-def build(extension: Extension, publish: bool = False, config: dict = None) -> None:
+def build(extension: "Extension", publish: bool = False, config: dict = None) -> None:
     """
     Builds the extension.
 
@@ -299,8 +280,8 @@ def build(extension: Extension, publish: bool = False, config: dict = None) -> N
         ext_data["commands"],
         extension.activity_bar_webview,
     )
-    python = build_py([c.func for c in ext_data["commands"]])
-    create_files(package, javascript, python, publish)
+
+    create_files(package, javascript, publish)
     end = time.time()
     time_taken = round((end - start) * 1000, 2)
     print(f"\033[1;37;49mBuild completed successfully in {time_taken} ms!", "\033[0m")
